@@ -14,6 +14,8 @@ class Phone(object):
         self._version = None
         #app path
         self._app = None
+        #app install
+        self._install = False
         #android appPackage & ios BundleID
         self._package = None
         #apk Activity, android only
@@ -26,8 +28,8 @@ class Phone(object):
         self._delay = 0.7
         #private variable
         self._automation = None
-        self._width = None
-        self._height = None
+        self._width = None #store phone width in private variable, in case this value varys as view changs
+        self._height = None #store phone height in private variable, in case this value varys as view changs
         self._phone = None
 
     @property
@@ -67,6 +69,13 @@ class Phone(object):
         self._app = app.strip().decode(encoding = 'UTF-8', errors = 'strict')
 
     @property
+    def install(self):
+        return self._install is True
+    @install.setter
+    def install(self, install):
+        self._install = install
+
+    @property
     def package(self):
         return self._package
     @package.setter
@@ -98,7 +107,7 @@ class Phone(object):
         return self._log
     @log.setter
     def log(self, path):
-        self._log = Log(path = path, driver = self)
+        self._log = Log(path = path, phone = self)
 
     @property
     def delay(self):
@@ -110,10 +119,10 @@ class Phone(object):
         self._delay = delay / 1000
 
     def attach(self):
-        if (not (self._identity is not None) and (self._platform is not None) and (self._version is not None) and (self._executor is not None) and (self._log is not None)) or ((self._platform == 'android') and (self._package is not None) and (self._activity is not None)):
-            raise Exception('identity/platform/version/executor/log/package/activity not pass!')
-        elif (not (self._identity is not None) and (self._platform is not None) and (self._version is not None) and (self._executor is not None) and (self._log is not None)) or ((self._platform == 'ios') and (self._package is not None)):
-            raise Exception('identity/platform/version/executor/log/package not pass!')
+        if (not (self._identity is not None) and (self._platform is not None) and (self._version is not None) and (self._app is not None) and (self._executor is not None) and (self._log is not None)) or ((self._platform == 'android') and (not (self._package is not None) and (self._activity is not None))):
+            raise Exception('identity/platform/version/app/executor/log/package/activity not pass!')
+        elif (not (self._identity is not None) and (self._platform is not None) and (self._version is not None) and (self._app is not None) and (self._executor is not None) and (self._log is not None)) or ((self._platform == 'ios') and (self._package is None)):
+            raise Exception('identity/platform/version/app/executor/log/package not pass!')
 
         #VERSION                       BACKEND         automationName
         #Android4.2+                   UiAutomator     Appium
@@ -149,7 +158,7 @@ class Phone(object):
                 capability['app'] = self._app
                 capability['androidInstallTimeout'] = 177000
                 capability['autoLaunch'] = True
-                capability['noReset'] = True
+                capability['noReset'] = self._install is not True
                 capability['fullReset'] = False
                 capability['autoGrantPermissions'] = True
                 if capability['automationName'] == 'Appium':
@@ -177,7 +186,7 @@ class Phone(object):
                 capability['app'] = self._app
                 capability['launchTimeout'] = 177000
                 capability['autoLaunch'] = True
-                capability['noReset'] = True
+                capability['noReset'] = self._install is not True
                 capability['fullReset'] = False
             capability['launchTimeout'] = 77000
             capability['webviewConnectRetries'] = 17
@@ -190,12 +199,12 @@ class Phone(object):
 
         self._log.ignite(ignite = 'Phone.attach()')
         try:
-            self._log.clause(clause = 'identity = ' + self._identity + ', platform = ' + self._platform + ', version = ' + self._version + ', app = ' + (self._app if self._app is not None else 'none') + ', package = ' + self._package + ', activity = ' + (self._activity if self._activity is not None else 'none') + ', executor = ' + self._executor + ', log = ' + self._log._log.name.encode(encoding = 'UTF-8', errors = 'strict'))
+            self._log.clause(clause = 'identity = ' + self._identity + ', platform = ' + self._platform + ', version = ' + self._version + ', app = ' + self._app + ', install = ' + ('true' if self._install is True else 'false') + ', package = ' + self._package + ', activity = ' + (self._activity if self._activity is not None else 'none') + ', executor = ' + self._executor + ', log = ' + self._log._log.name.encode(encoding = 'UTF-8', errors = 'strict'))
 
             self._phone = appium.webdriver.webdriver.WebDriver(command_executor = self._executor, desired_capabilities = capability)
 
-            self._width = self._phone.get_window_size(windowHandle = 'current').get('width', None)
-            self._height = self._phone.get_window_size(windowHandle = 'current').get('height', None)
+            self._width = self._phone.get_window_size(windowHandle = 'current').get(u'width', None)
+            self._height = self._phone.get_window_size(windowHandle = 'current').get(u'height', None)
             if not ((self._width is not None) and (self._height is not None)):
                 raise Exception('phone size unknow!')
 
@@ -279,9 +288,9 @@ class Phone(object):
         time.sleep(self._delay)
         self._log.ignite(ignite = 'Phone.find()')
         try:
-            if not ((self._platform == 'android') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android)))):
+            if ((self._platform == 'android') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android))))):
                 raise Exception('pass attribute as Android()!')
-            elif not ((self._platform == 'ios') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios)))):
+            elif ((self._platform == 'ios') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios))))):
                 raise Exception('pass attribute as Ios()!')
 
             if type(attribute) is not list:
@@ -299,13 +308,13 @@ class Phone(object):
             xpath = '//*'
             for i in attribute:
                 if i._key in ['class', 'type']:
-                    xpath = '//' + i._key
+                    xpath = '//' + i._value
             for i in attribute:
                 if i._key not in ['class', 'type']:
                     if i._strict is True:
-                        xpath += '[' + i._key + '=' + i._value + ']'
+                        xpath += '[@' + i._key + '=' + i._value + ']'
                     else:
-                        xpath += '[contains(' + i._key + ',' + i._value + ')]'
+                        xpath += '[contains(@' + i._key + ',' + i._value + ')]'
 
             self._log.clause(clause = 'xpath = ' + xpath)
 
@@ -315,11 +324,11 @@ class Phone(object):
 
             self._log.effect(effect = 'find element = ' + str(len(element)))
 
-            if self._platform == 'android':
-                return list(ElementAndroid(element = i, phone = self) for i in element)
-            else:
-                return list(ElementIos(element = i, phone = self) for i in element)
+            array = list()
+            for i in range(0, len(element), 1):
+                array.append(Element(element = element[i], phone = self, xpath = xpath + '[' + str(i + 1) + ']'))
 
+            return array
         except Exception as e:
             self._log.error(error = e)
             raise e
@@ -328,9 +337,10 @@ class Phone(object):
         time.sleep(self._delay)
         self._log.ignite(ignite = 'Phone.tap()')
         try:
-            if not ((type(x) is int) and (0 - self._width / 2 < x < self._width / 2) and (type(y) is int) and (0 - self._height / 2 < y < self._height / 2) and (type(count) is int) and (count > 0)):
-                raise Exception('pass x/y/count as int(within_size)/int(>0)!')
-
+##            if not ((type(x) is int) and (2 - self._width / 2 <= x <= self._width / 2 - 2) and (type(y) is int) and (2 - self._height / 2 <= y <= self._height / 2 - 2) and (type(count) is int) and (count > 0)):
+##                raise Exception('pass x/y/count as int(within_size)/int(>0)!')
+            if not ((type(x) is int) and (type(y) is int) and (type(count) is int) and (count > 0)):
+                raise Exception('pass x/y/count as int()/int(>0)!')
             self._log.clause(clause = 'x = ' + str(x) + ', y = ' + str(y) + ', count = ' + str(count))
 
             appium.webdriver.common.touch_action.TouchAction(self._phone).tap(element = None, x = self._width / 2 + x, y = self._height / 2 - y, count = count).perform()
@@ -340,34 +350,36 @@ class Phone(object):
             self._log.error(error = e)
             raise e
 
-    def drag(self, x, y):
+    def hold(self, x, y):
         time.sleep(self._delay)
-        self._log.ignite(ignite = 'Phone.drag()')
+        self._log.ignite(ignite = 'Phone.hold()')
         try:
-            if not ((type(x) is int) and (0 - self._width / 2 < x < self._width / 2) and (type(y) is int) and (0 - self._height / 2 < y < self._height / 2)):
-                raise Exception('pass x/y as int(within_size)/int(>0)!')
-
+##            if not ((type(x) is int) and (2 - self._width / 2 <= x <= self._width / 2 - 2) and (type(y) is int) and (2 - self._height / 2 <= y <= self._height / 2 - 2)):
+##                raise Exception('pass x/y as int(within_size)/int(>0)!')
+            if not ((type(x) is int) and (type(y) is int)):
+                raise Exception('pass x/y as int()/int(>0)!')
             self._log.clause(clause = 'x = ' + str(x) + ', y = ' + str(y))
 
             appium.webdriver.common.touch_action.TouchAction(self._phone).press(el = None, x = self._width / 2 + x, y = self._height / 2 - y).perform()
 
-            self._log.effect(effect = 'phone drag')
+            self._log.effect(effect = 'phone hold')
         except Exception as e:
             self._log.error(error = e)
             raise e
 
-    def drop(self, x, y):
+    def release(self, x, y):
         time.sleep(self._delay)
-        self._log.ignite(ignite = 'Phone.drop()')
+        self._log.ignite(ignite = 'Phone.release()')
         try:
-            if not ((type(x) is int) and (0 - self._width / 2 < x < self._width / 2) and (type(y) is int) and (0 - self._height / 2 < y < self._height / 2)):
-                raise Exception('pass x/y as int(within_size)/int(>0)!')
-
+##            if not ((type(x) is int) and (2 - self._width / 2 <= x <= self._width / 2 - 2) and (type(y) is int) and (2 - self._height / 2 <= y <= self._height / 2 - 2)):
+##                raise Exception('pass x/y as int(within_size)/int(>0)!')
+            if not ((type(x) is int) and (type(y) is int)):
+                raise Exception('pass x/y as int()/int(>0)!')
             self._log.clause(clause = 'x = ' + str(x) + ', y = ' + str(y))
 
             appium.webdriver.common.touch_action.TouchAction(self._phone).move_to(el = None, x = self._width / 2 + x, y = self._height / 2 - y).release().perform()
 
-            self._log.effect(effect = 'phone drop')
+            self._log.effect(effect = 'phone release')
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
@@ -376,9 +388,10 @@ class Phone(object):
         time.sleep(self._delay)
         self._log.ignite(ignite = 'Phone.press()')
         try:
-            if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (0 - self._width / 2 < x < self._width / 2) and (type(y) is int) and (0 - self._height / 2 < y < self._height / 2)):
-                raise Exception('pass duration/x/y as int(>0)/int(within_size)!')
-
+##            if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (2 - self._width / 2 <= x <= self._width / 2 - 2) and (type(y) is int) and (2 - self._height / 2 <= y <= self._height / 2 - 2)):
+##                raise Exception('pass duration/x/y as int(>0)/int(within_size)!')
+            if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (type(y) is int)):
+                raise Exception('pass duration/x/y as int(>0)/int()!')
             self._phone._log.clause(clause = 'duration = ' + str(duration) + 'x = ' + str(x) + ', y = ' + str(y))
 
             appium.webdriver.common.touch_action.TouchAction(self._phone).long_press(el = None, x = self._width / 2 + x, y = self._height / 2 - y, duration = duration).perform()
@@ -392,8 +405,8 @@ class Phone(object):
         time.sleep(self._delay)
         self._log.ignite(ignite = 'Phone.shake()')
         try:
-            if not (type(count) is int) and (count > 0):
-                raise except('pass count as int(>0)!')
+            if not ((type(count) is int) and (count > 0)):
+                raise Exception('pass count as int(>0)!')
 
             self._log.clause(clause = 'count = ' + str(count))
 
@@ -455,7 +468,7 @@ class Phone(object):
             self._log.clause(clause = 'none')
 
             #several android phone has soft menu button displayed at the bottom of the screen, and several android pad's notification area is on the left-top of the screen, thus we should do the operation near the screen's left edge to achive the entire flick action chain
-            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = 7, y = 0).move_to(el = None, x = 7, y = 0 - self._height).release().perform()
+            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = self._width * 2 / 7, y = 1).move_to(el = None, x = 0, y = self._height - 2).release().perform()
 
             self._log.effect(effect = 'flick topbottom')
         except Exception as e:
@@ -469,7 +482,7 @@ class Phone(object):
             self._log.clause(clause = 'none')
 
             #several android phone has soft menu button displayed at the bottom of the screen, thus we should do the operation near the screen's left edge to achive the entire flick action chain
-            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = 7, y = 0 - self._height).move_to(el = None, x = 7, y = 0).release().perform()
+            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = self._width * 2 / 7, y = self._height - 1).move_to(el = None, x = 0, y = 2 - self._height).release().perform()
 
             self._log.effect(effect = 'flick bottomtop')
         except Exception as e:
@@ -482,7 +495,7 @@ class Phone(object):
         try:
             self._log.clause(clause = 'none')
 
-            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = 0, y = 0 - self._height / 2).move_to(el = None, x = self._width, y = 0 - self._height / 2).release().perform()
+            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = 1, y = self._height / 2).move_to(el = None, x = self._width - 2, y = 0).release().perform()
 
             self._log.effect(effect = 'flick leftright')
         except Exception as e:
@@ -495,7 +508,7 @@ class Phone(object):
         try:
             self._log.clause(clause = 'none')
 
-            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = self._width, y = 0 - self._height / 2).move_to(el = None, x = 0, y = 0 - self._height / 2).release().perform()
+            appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = self._width - 1, y = self._height / 2).move_to(el = None, x = 2 - self._width, y = 0).release().perform()
 
             self._log.effect(effect = 'flick rightleft')
         except Exception as e:
@@ -511,7 +524,9 @@ class Phone(object):
             if self._platform == 'android':
                 self._phone.hide_keyboard(key_name = None, key = None, strategy = None)
             else:
-##                appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = self._width / 2, y = 0 - self._height / 7).move_to(el = None, x = self._width / 2, y = 0 - self._height).release().perform()
+##                #the old fashioned way
+##                appium.webdriver.common.touch_action.TouchAction(driver = self._phone).press(el = None, x = self._width / 2, y = self._height / 7).move_to(el = None, x = 0, y = self._height * 6 / 7 - 2).release().perform()
+
                 self._phone.hide_keyboard(key_name = None, key = None, strategy = 'swipeDown')
 
             self._log.effect(effect = 'ime fold')
@@ -529,7 +544,7 @@ class Phone(object):
 
             self._log.clause(clause = 'key = ' + str(key) + ', meta = ' + ('none' if meta is None else str(meta)))
 
-            if self._automation = 'Appium':
+            if self._automation == 'Appium':
                 self._phone.press_keycode(keycode = key, metastate = meta)
             else:
                 self._phone.keyevent(keycode = key, metastate = meta)
@@ -539,36 +554,43 @@ class Phone(object):
             self._log.error(error = e)
             raise e
 
-    def toast_Android(self, toast, timeout = 7000):
-        time.sleep(self._delay)
+    def toast_Android(self, toast, strict = True, timeout = 7000):
+##        time.sleep(self._delay)
         self._log.ignite(ignite = 'Phone.toast_Android()')
         try:
             if not ((self._platform == 'android') and (type(toast) is str) and (len(toast) > 0) and (type(timeout) is int) and (timeout > 0)):
                 raise Exception('android only, pass toast/timeout as str(len>0)/int(>0)!')
 
-            self._log.clause(clause = 'toast = ' + toast + ', timeout = ' + str(timeout))
+            if strict is True:
+                xpath = "//*[@text='" + toast + "']"
+            else:
+                xpath = "//*[contains(@text,'" + toast + "')]"
+
+            self._log.clause(clause = 'xpath = ' + xpath + ', timeout = ' + str(timeout))
 
             end = time.time() + timeout / 1000
             while time.time() < end:
                 try:
-                    self._phone.find_element(by = 'xpath', value = ("//*[@text='" + toast + "']").decode(encoding = 'UTF-8', errors = 'strict'))
-
-                    png = self._log._log.name + '.' + uuid.uuid4().hex + '.png'
-                    for i in range(0, 7, 1):
-                        if not os.path.isfile(path = png):
-                            self._phone.get_screenshot_as_file(filename = png)
-                            time.sleep(0.07)
-                        else:
-                            break
+                    if isinstance(self._phone.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
+                        break
                 except:
                     if time.time() < end:
                         time.sleep(0.07)
                     else:
-                        self._log.effect(effect = 'toast catch = ' + (png.encode(encoding = 'UTF-8', errors = 'strict') if os.path.isfile(path = png) else 'none'))
+                        self._log.effect(effect = 'toast miss')
                         return False
-                else:
-                    self._log.effect(effect = 'toast miss')
-                    return True
+
+            png = self._log._log.name + '.' + uuid.uuid4().hex + '.png'
+            for i in range(0, 7, 1):
+                try:
+                    self._phone.get_screenshot_as_file(filename = png)
+                    self._log.effect(effect = 'toast catch = ' + png.encode(encoding = 'UTF-8', errors = 'strict'))
+                    break
+                except:
+                    time.sleep(0.07)
+                    if id == 6:
+                        self._log.effect(effect = 'toast catch')
+            return True
         except Exception as e:
             self._log.error(error = e)
             raise e
@@ -595,7 +617,7 @@ class Phone(object):
 
             self._phone.set_network_connection(connectionType = net)
 
-            self._log.effect(effect = connection + 'set')
+            self._log.effect(effect = connection + ' set')
         except Exception as e:
             self._log.error(error = e)
             raise e
@@ -615,19 +637,24 @@ class Phone(object):
 
 
 class Element(object):
-    def __init__(self, element, phone):
-        if not ((isinstance(element, appium.webdriver.webelement.WebElement)) and (isinstance(phone, Phone))):
-            raise Exception('pass element/phone as WebElement()/Phone()!')
+    def __init__(self, element, phone, xpath):
+        if not ((isinstance(element, appium.webdriver.webelement.WebElement)) and (isinstance(phone, Phone)) and (type(xpath) is str) and (len(xpath.strip()) > 0)):
+            raise Exception('pass element/phone/xpath as WebElement()/Phone()/str(xpath)!')
         self._element = element
         self._phone = phone
+        self._xpath = xpath
+        self._abscissa = self._element.location_in_view.get(u'x', None) #store element x coordinate in private variable, in case this value varys as view changs
+        self._ordinate = self._element.location_in_view.get(u'y', None) #store element y coordinate in private variable, in case this value varys as view changs
+        if not ((self._abscissa is not None) and (self._ordinate is not None)):
+            raise Exception('element coordinate unknow!')
 
     def find(self, attribute):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.find()')
         try:
-            if not ((self._platform == 'android') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android)))):
+            if ((self._phone._platform == 'android') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android))))):
                 raise Exception('pass attribute as Android()!')
-            elif not ((self._platform == 'ios') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios)))):
+            elif ((self._phone._platform == 'ios') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios))))):
                 raise Exception('pass attribute as Ios()!')
 
             if type(attribute) is not list:
@@ -642,26 +669,30 @@ class Element(object):
                     if not isinstance(i, Ios):
                         raise Exception('pass attribute as list(Ios())!')
 
-            xpath = './/*'
+            xpath = self._xpath + '//*'
             for i in attribute:
                 if i._key in ['class', 'type']:
-                    xpath = './/' + i._key
+                    xpath = self._xpath + '//' + i._value
             for i in attribute:
                 if i._key not in ['class', 'type']:
                     if i._strict is True:
-                        xpath += '[' + i._key + '=' + i._value + ']'
+                        xpath += '[@' + i._key + '=' + i._value + ']'
                     else:
-                        xpath += '[contains(' + i._key + ',' + i._value + ')]'
+                        xpath += '[contains(@' + i._key + ',' + i._value + ')]'
 
-            self._phone._log.clause(clause = 'xpath = ' + xpath)
+            self._phone._log.clause(clause = 'xpath = .' + xpath[len(self._xpath)::1])
 
-            element = self._element.find_elements(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
+            element = self._element._parent.find_elements(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
             if not ((type(element) is list) and (len(element) > 0)):
                 raise Exception('find element = 0!')
 
             self._phone._log.effect(effect = 'find element = ' + str(len(element)))
 
-            return list(Element(element = i, phone = self._phone) for i in element)
+            array = list()
+            for i in range(0, len(element), 1):
+                array.append(Element(element = element[i], phone = self._phone, xpath = xpath + '[' + str(i + 1) + ']'))
+
+            return array
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
@@ -670,15 +701,15 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.parent()')
         try:
-            xpath = './/..'
+            xpath = self._xpath + '/..'
 
-            self._phone._log.clause(clause = 'xpath = ' + xpath)
+            self._phone._log.clause(clause = 'xpath = ./..')
 
-            element = self._element.find_elements(by = 'xpath', value = xpath)
+            element = self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
 
             self._phone._log.effect(effect = 'parent find')
 
-            return Element(element = element, driver = self._phone)
+            return Element(element = element, phone = self._phone, xpath = xpath)
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
@@ -687,6 +718,8 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.tap()')
         try:
+##            if not ((type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1) and (type(count) is int) and (count > 0)):
+##                raise Exception('pass x/y/count as int(within_size)/int(>0)!')
             if not ((type(x) is int) and (type(y) is int) and (type(count) is int) and (count > 0)):
                 raise Exception('pass x/y/count as int()/int(>0)!')
 
@@ -697,8 +730,6 @@ class Element(object):
                 try:
                     if self._element.is_displayed() is True:
                         break
-                    elif time.time() < end:
-                        time.sleep(0.7)
                     else:
                         raise Exception('element not display!')
                 except Exception as e:
@@ -710,17 +741,19 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = count).perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = self._element.size['width'] / 2 + x, y = self._element.size['height'] / 2 - y, count = count).perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y, count = count).perform()
 
             self._phone._log.effect(effect = 'element tap = ' + str(count))
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
 
-    def drag(self, x = 0, y = 0):
+    def hold(self, x = 0, y = 0):
         time.sleep(self._phone._delay)
-        self._phone._log.ignite(ignite = 'Element.drag()')
+        self._phone._log.ignite(ignite = 'Element.hold()')
         try:
+##            if not ((type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1)):
+##                raise Exception('pass x/y as int(within_size)!')
             if not ((type(x) is int) and (type(y) is int)):
                 raise Exception('pass x/y as int()!')
 
@@ -731,8 +764,6 @@ class Element(object):
                 try:
                     if self._element.is_displayed() is True:
                         break
-                    elif time.time() < end:
-                        time.sleep(0.7)
                     else:
                         raise Exception('element not display!')
                 except Exception as e:
@@ -744,17 +775,19 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).press(el = self._element, x = None, y = None).perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).press(el = self._element, x = self._element.size['width'] / 2 + x, y = self._element.size['height'] / 2 - y).perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).press(el = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y).perform()
 
-            self._phone._log.effect(effect = 'element drag')
+            self._phone._log.effect(effect = 'element hold')
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
 
-    def drop(self, x = 0, y = 0):
+    def release(self, x = 0, y = 0):
         time.sleep(self._phone._delay)
-        self._phone._log.ignite(ignite = 'Element.drop()')
+        self._phone._log.ignite(ignite = 'Element.release()')
         try:
+##            if not ((type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1)):
+##                raise Exception('pass x/y as int(within_size)!')
             if not ((type(x) is int) and (type(y) is int)):
                 raise Exception('pass x/y as int()!')
 
@@ -765,8 +798,6 @@ class Element(object):
                 try:
                     if self._element.is_displayed() is True:
                         break
-                    elif time.time() < end:
-                        time.sleep(0.7)
                     else:
                         raise Exception('element not display!')
                 except Exception as e:
@@ -778,9 +809,9 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).move_to(el = self._element, x = None, y = None).release().perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).move_to(el = self._element, x = self._element.size['width'] / 2 + x, y = self._element.size['height'] / 2 - y).release().perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).move_to(el = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y).release().perform()
 
-            self._phone._log.effect(effect = 'element drop')
+            self._phone._log.effect(effect = 'element release')
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
@@ -789,6 +820,8 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.press()')
         try:
+##            if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1)):
+##                raise Exception('pass duration/x/y as int(>0)/int(within_size)!')
             if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (type(y) is int)):
                 raise Exception('pass duration/x/y as int(>0)/int()!')
 
@@ -799,8 +832,6 @@ class Element(object):
                 try:
                     if self._element.is_displayed() is True:
                         break
-                    elif time.time() < end:
-                        time.sleep(0.7)
                     else:
                         raise Exception('element not display!')
                 except Exception as e:
@@ -812,7 +843,7 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).long_press(el = self._element, x = None, y = None, duration = duration).perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).long_press(el = self._element, x = self._element.size['width'] / 2 + x, y = self._element.size['height'] / 2 - y, duration = duration).perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).long_press(el = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y, duration = duration).perform()
 
             self._phone._log.effect(effect = 'element press = ' + str(duration))
         except Exception as e:
@@ -830,8 +861,6 @@ class Element(object):
                 try:
                     if self._element.is_displayed() is True:
                         break
-                    elif time.time() < end:
-                        time.sleep(0.7)
                     else:
                         raise Exception('element not display!')
                 except Exception as e:
@@ -840,30 +869,32 @@ class Element(object):
                     else:
                         raise e
 
-##            #the old fashioned way
-##            if self._phone._platform == 'android':
+            if self._phone._platform == 'android':
+##                #the old fashioned way
+##                appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
 ##                if self._phone._automation == 'Appium':
-##                    appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
 ####                    self._element._parent.press_keycode(keycode = 29, metastate = 28672)
+####                    self._element._parent.press_keycode(keycode = 112, metastate = None)
 ##
-##                    self._element._parent.press_keycode(keycode = 122, metastate = 193)
-##                    self._element._parent.press_keycode(keycode = 123, metastate = None)
-##
-##                    self._element._parent.press_keycode(keycode = 67, metastate = None)
-##                    self._element._parent.hide_keyboard(key_name = None, key = None, strategy = None)
+##                    self._element._parent.press_keycode(keycode = 122, metastate = None)
+##                    self._element._parent.press_keycode(keycode = 123, metastate = 193)
+##                    self._element._parent.press_keycode(keycode = 112, metastate = None)
 ##                else:
-##                    appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
 ####                    self._element._parent.keyevent(keycode = 29, metastate = 28672)
+####                    self._element._parent.keyevent(keycode = 112, metastate = None)
 ##
-##                    self._element._parent.keyevent(keycode = 122, metastate = 193)
-##                    self._element._parent.keyevent(keycode = 123, metastate = None)
-##
-##                    self._element._parent.keyevent(keycode = 67, metastate = None)
+##                    self._element._parent.keyevent(keycode = 122, metastate = None)
+##                    self._element._parent.keyevent(keycode = 123, metastate = 193)
+##                    self._element._parent.keyevent(keycode = 112, metastate = None)
+##                try:
 ##                    self._element._parent.hide_keyboard(key_name = None, key = None, strategy = None)
-##            else:
-##                self._element.clear()
-
-            self._element.clear()
+##                except:
+##                    pass
+                self._element.set_text(keys = '')
+            else:
+##                self._element.send_keys('')
+##                self._element.set_value(value = '')
+                self._element.clear()
 
             self._phone._log.effect(effect = 'content clear')
         except Exception as e:
@@ -882,8 +913,6 @@ class Element(object):
                 try:
                     if self._element.is_displayed() is True:
                         break
-                    elif time.time() < end:
-                        time.sleep(0.7)
                     else:
                         raise Exception('element not display!')
                 except Exception as e:
@@ -895,20 +924,15 @@ class Element(object):
             self._phone._log.clause(clause = 'send = ' + send)
 
             if self._phone._platform == 'android':
-                if self._phone._automation == 'Appium':
-                    appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
-                    self._element._parent.press_keycode(keycode = 123, metastate = None)
-                else:
-                    appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
-                    self._element._parent.keyevent(keycode = 123, metastate = None)
-
-            self._element.send_keys(send.decode(encoding = 'UTF-8', errors = 'strict'))
-
-            if self._phone._platform == 'android':
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
+                self._element.set_text(keys = send.decode(encoding = 'UTF-8', errors = 'strict'))
                 try:
                     self._element._parent.hide_keyboard(key_name = None, key = None, strategy = None)
                 except:
                     pass
+            else:
+##                self._element.send_keys(send.decode(encoding = 'UTF-8', errors = 'strict'))
+                self._element.set_value(value = send.decode(encoding = 'UTF-8', errors = 'strict'))
 
             self._phone._log.effect(effect = 'line send')
         except Exception as e:
@@ -919,9 +943,9 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.waitexist()')
         try:
-            if not ((self._platform == 'android') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android))) and (type(timeout) is int) and (timeout > 0)):
+            if ((self._phone._platform == 'android') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android))) and (type(timeout) is int) and (timeout > 0))):
                 raise Exception('pass attribute/timeout as Android()/int(>0)!')
-            elif not ((self._platform == 'ios') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios))) and (type(timeout) is int) and (timeout > 0)):
+            elif ((self._phone._platform == 'ios') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios))) and (type(timeout) is int) and (timeout > 0))):
                 raise Exception('pass attribute/timeout as Ios()/int(>0)!')
 
             if type(attribute) is not list:
@@ -936,23 +960,24 @@ class Element(object):
                     if not isinstance(i, Ios):
                         raise Exception('pass attribute as list(Ios())!')
 
-            xpath = './/*'
+            xpath = self._xpath + '//*'
             for i in attribute:
                 if i._key in ['class', 'type']:
-                    xpath = './/' + i._key
+                    xpath = self._xpath + '//' + i._value
             for i in attribute:
                 if i._key not in ['class', 'type']:
                     if i._strict is True:
-                        xpath += '[' + i._key + '=' + i._value + ']'
+                        xpath += '[@' + i._key + '=' + i._value + ']'
                     else:
-                        xpath += '[contains(' + i._key + ',' + i._value + ')]'
+                        xpath += '[contains(@' + i._key + ',' + i._value + ')]'
 
-            self._phone._log.clause(clause = 'xpath = ' + xpath)
+            self._phone._log.clause(clause = 'xpath = .' + xpath[len(self._xpath)::1])
 
             end = time.time() + timeout / 1000
             while time.time() < end:
                 try:
-                    self._element.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
+                    if not isinstance(self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
+                        raise Exception('element not exist!')
                 except Exception as e:
                     if time.time() < end:
                         time.sleep(0.7)
@@ -970,9 +995,9 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.waitextinct()')
         try:
-            if not ((self._platform == 'android') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android))) and (type(timeout) is int) and (timeout > 0)):
+            if ((self._phone._platform == 'android') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Android))) and (type(timeout) is int) and (timeout > 0))):
                 raise Exception('pass attribute/timeout as Android()/int(>0)!')
-            elif not ((self._platform == 'ios') and (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios))) and (type(timeout) is int) and (timeout > 0)):
+            elif ((self._phone._platform == 'ios') and (not (((type(attribute) is list) and (len(attribute) > 0)) or (isinstance(attribute, Ios))) and (type(timeout) is int) and (timeout > 0))):
                 raise Exception('pass attribute/timeout as Ios()/int(>0)!')
 
             if type(attribute) is not list:
@@ -987,30 +1012,31 @@ class Element(object):
                     if not isinstance(i, Ios):
                         raise Exception('pass attribute as list(Ios())!')
 
-            xpath = './/*'
+            xpath = self._xpath + '//*'
             for i in attribute:
                 if i._key in ['class', 'type']:
-                    xpath = './/' + i._key
+                    xpath = self._xpath + '//' + i._value
             for i in attribute:
                 if i._key not in ['class', 'type']:
                     if i._strict is True:
-                        xpath += '[' + i._key + '=' + i._value + ']'
+                        xpath += '[@' + i._key + '=' + i._value + ']'
                     else:
-                        xpath += '[contains(' + i._key + ',' + i._value + ')]'
+                        xpath += '[contains(@' + i._key + ',' + i._value + ')]'
 
-            self._phone._log.clause(clause = 'xpath = ' + xpath)
+            self._phone._log.clause(clause = 'xpath = .' + xpath[len(self._xpath)::1])
 
             end = time.time() + timeout / 1000
             while time.time() < end:
                 try:
-                    self._element.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
-                except Exception as e:
+                    if not isinstance(self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
+                        raise
+                except Exception:
                         break
                 else:
                     if time.time() < end:
                         time.sleep(0.7)
                     else:
-                        raise e
+                        raise Exception('element not extinct!')
 
             self._phone._log.effect(effect = 'element extinct')
         except Exception as e:
@@ -1043,7 +1069,7 @@ class Element(object):
         try:
             self._phone._log.clause(clause = 'none')
 
-            width = self._element.size.get('width', None)
+            width = self._element.size.get(u'width', None)
 
             self._phone._log.effect(effect = 'element width = ' + (str(width) if width is not None else 'none'))
 
@@ -1058,11 +1084,41 @@ class Element(object):
         try:
             self._phone._log.clause(clause = 'none')
 
-            height = self._element.size.get('height', None)
+            height = self._element.size.get(u'height', None)
 
             self._phone._log.effect(effect = 'element height = ' + (str(height) if height is not None else 'none'))
 
             return height
+        except Exception as e:
+            self._phone._log.error(error = e)
+            raise e
+
+    def abscissa(self):
+        time.sleep(self._phone._delay)
+        self._phone._log.ignite(ignite = 'Element.abscissa()')
+        try:
+            self._phone._log.clause(clause = 'none')
+
+            abscissa = self._abscissa + self._element.size[u'width'] - self._phone._width / 2
+
+            self._phone._log.effect(effect = 'element abscissa = ' + str(abscissa))
+
+            return abscissa
+        except Exception as e:
+            self._phone._log.error(error = e)
+            raise e
+
+    def ordinate(self):
+        time.sleep(self._phone._delay)
+        self._phone._log.ignite(ignite = 'Element.ordinate()')
+        try:
+            self._phone._log.clause(clause = 'none')
+
+            ordinate = self._phone._height / 2 - self._ordinate - self._element.size[u'height']
+
+            self._phone._log.effect(effect = 'element ordinate = ' + str(ordinate))
+
+            return ordinate
         except Exception as e:
             self._phone._log.error(error = e)
             raise e
@@ -1136,44 +1192,45 @@ class Android(object):
         self._value = None
         self._strict = True
 
+    #because 'class' is a python key word and could not be overridden, it leaves me no choise but to use such strang-looking naming rule on class and variable name
     @staticmethod
-    def class(class):
-        if not ((type(class) is str) and (len(class) > 0)):
-            raise Exception('pass class as str(len>0)!')
+    def class_(class_):
+        if not ((type(class_) is str) and (len(class_) > 0)):
+            raise Exception('pass class_ as str(len>0)!')
         c = Android()
         c._key = 'class'
-        c._value = class
+        c._value = class_
         return c
 
     @staticmethod
-    def text(text, strict = True):
-        if not ((type(text) is str) and (len(text) > 0)):
-            raise Exception('pass text as str(len>0)!')
+    def text_(text_, strict = True):
+        if not ((type(text_) is str) and (len(text_) > 0)):
+            raise Exception('pass text_ as str(len>0)!')
         c = Android()
         c._key = 'text'
-        c._value = "'" + text + "'"
+        c._value = "'" + text_ + "'"
         c._strict = strict
         return c
 
     @staticmethod
-    def contentdesc(contentdesc, strict = True):
-        if not ((type(contentdesc) is str) and (len(contentdesc) > 0)):
-            raise Exception('pass contentdesc as str(len>0)!')
+    def contentdesc_(contentdesc_, strict = True):
+        if not ((type(contentdesc_) is str) and (len(contentdesc_) > 0)):
+            raise Exception('pass contentdesc_ as str(len>0)!')
         c = Android()
         c._key = 'content-desc'
-        c._value = "'" + contentdesc + "'"
+        c._value = "'" + contentdesc_ + "'"
         c._strict = strict
         return c
 
     @staticmethod
-    def index(index, strict = True):
-##        if not (((type(index) is int) and (index >= 0)) or ((type(index) is str) and (len(re.findall(pattern = '^\s*\d+\s*$', string = index, flags = 0)) == 1) and (int(index) >= 0))):
-        if not ((type(index) is int) and (index >= 0)):
-            raise Exception('pass index as int(>0)!')
+    def index_(index_, strict = True):
+##        if not (((type(index_) is int) and (index_ >= 0)) or ((type(index_) is str) and (len(re.findall(pattern = '^\s*\d+\s*$', string = index_, flags = 0)) == 1) and (int(index_) >= 0))):
+        if not ((type(index_) is int) and (index_ >= 0)):
+            raise Exception('pass index_ as int(>0)!')
         c = Android()
         c._key = 'index'
-##        c._value = str(index) if type(index) is int else index
-        c._value = str(index)
+##        c._value = "'" + str(index_) + "'" if type(index_) is int else index_
+        c._value = "'" + str(index_) + "'"
         c._strict = strict
         return c
 
@@ -1187,39 +1244,39 @@ class Ios(object):
         self._strict = True
 
     @staticmethod
-    def type(type):
-        if not ((type(type) is str) and (len(type) > 0)):
-            raise Exception('pass type as str(len>0)!')
+    def type_(type_):
+        if not ((type(type_) is str) and (len(type_) > 0)):
+            raise Exception('pass type_ as str(len>0)!')
         c = Ios()
         c._key = 'type'
-        c._value = type
+        c._value = type_
         return c
 
     @staticmethod
-    def name(name, strict = True):
-        if not ((type(name) is str) and (len(name) > 0)):
-            raise Exception('pass name as str(len>0)!')
+    def name_(name_, strict = True):
+        if not ((type(name_) is str) and (len(name_) > 0)):
+            raise Exception('pass name_ as str(len>0)!')
         c = Ios()
         c._key = 'name'
-        c._value = "'" + name + "'"
+        c._value = "'" + name_ + "'"
         return c
 
     @staticmethod
-    def label(label, strict = True):
-        if not ((type(label) is str) and (len(label) > 0)):
-            raise Exception('pass label as str(len>0)!')
+    def label_(label_, strict = True):
+        if not ((type(label_) is str) and (len(label_) > 0)):
+            raise Exception('pass label_ as str(len>0)!')
         c = Ios()
         c._key = 'label'
-        c._value = "'" + label + "'"
+        c._value = "'" + label_ + "'"
         return c
 
     @staticmethod
-    def value(value, strict = True):
-        if not ((type(value) is str) and (len(value) > 0)):
-            raise Exception('pass value as str(len>0)!')
+    def value_(value_, strict = True):
+        if not ((type(value_) is str) and (len(value_) > 0)):
+            raise Exception('pass value_ as str(len>0)!')
         c = Ios()
         c._key = 'value'
-        c._value = "'" + value + "'"
+        c._value = "'" + value_ + "'"
         return c
 
 
@@ -1250,13 +1307,6 @@ class Log(object):
         self._log.write('\n' * 2)
 
     def error(self, error):
-        for i in range(0, 7, 1):
-            if not os.path.isfile(path = self._log.name + '.' + str(self._count).zfill(7) + '.png'):
-                self._phone.get_screenshot_as_file(filename = self._log.name + '.' + str(self._count).zfill(7) + '.png')
-                time.sleep(0.07)
-            else:
-                break
-
 ##        try:
 ##            self._phone._phone.quit()
 ##        except:
@@ -1272,8 +1322,16 @@ class Log(object):
         self._log.write('DEF TRACEBACK:')
         self._log.write('\n')
         self._log.writelines(traceback.format_stack(f = None, limit = None))
-        self._log.write('DEF SCREENSHOT:\t' + self._log.name + '.' + str(self._count).zfill(7) + '.png')
+        for i in range(0, 7, 1):
+            try:
+                self._phone._phone.get_screenshot_as_file(filename = self._log.name + '.' + str(self._count).zfill(7) + '.png')
+                self._log.write('DEF SCREENSHOT:\t' + self._log.name + '.' + str(self._count).zfill(7) + '.png')
+                self._count += 1
+                break
+            except:
+                time.sleep(0.07)
+                if i == 6:
+                    self._log.write('DEF SCREENSHOT:\tnone')
         self._log.write('\n' * 2)
-        self._count += 1
 
 ##        self._log.close()
