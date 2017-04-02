@@ -1197,42 +1197,43 @@ class Android(object):
     def class_(class_):
         if not ((type(class_) is str) and (len(class_) > 0)):
             raise Exception('pass class_ as str(len>0)!')
-        c = Android()
-        c._key = 'class'
-        c._value = class_
-        return c
+        instance = Android()
+        instance._key = 'class'
+        instance._value = class_
+        return instance
 
     @staticmethod
     def text_(text_, strict = True):
         if not ((type(text_) is str) and (len(text_) > 0)):
             raise Exception('pass text_ as str(len>0)!')
-        c = Android()
-        c._key = 'text'
-        c._value = "'" + text_ + "'"
-        c._strict = strict
-        return c
+        instance = Android()
+        instance._key = 'text'
+        instance._value = "'" + text_ + "'"
+        instance._strict = strict
+        return instance
 
     @staticmethod
     def contentdesc_(contentdesc_, strict = True):
         if not ((type(contentdesc_) is str) and (len(contentdesc_) > 0)):
             raise Exception('pass contentdesc_ as str(len>0)!')
-        c = Android()
-        c._key = 'content-desc'
-        c._value = "'" + contentdesc_ + "'"
-        c._strict = strict
-        return c
+        instance = Android()
+        instance._key = 'content-desc'
+        instance._value = "'" + contentdesc_ + "'"
+        instance._strict = strict
+        return instance
 
     @staticmethod
-    def index_(index_, strict = True):
+##    def index_(index_, strict = True):
+    def index_(index_):
 ##        if not (((type(index_) is int) and (index_ >= 0)) or ((type(index_) is str) and (len(re.findall(pattern = '^\s*\d+\s*$', string = index_, flags = 0)) == 1) and (int(index_) >= 0))):
         if not ((type(index_) is int) and (index_ >= 0)):
-            raise Exception('pass index_ as int(>0)!')
-        c = Android()
-        c._key = 'index'
-##        c._value = "'" + str(index_) + "'" if type(index_) is int else index_
-        c._value = "'" + str(index_) + "'"
-        c._strict = strict
-        return c
+            raise Exception('pass index_ as int(>=0)!')
+        instance = Android()
+        instance._key = 'index'
+##        instance._value = "'" + str(index_) + "'" if type(index_) is int else index_
+        instance._value = "'" + str(index_) + "'"
+##        instance._strict = strict
+        return instance
 
 
 
@@ -1247,37 +1248,37 @@ class Ios(object):
     def type_(type_):
         if not ((type(type_) is str) and (len(type_) > 0)):
             raise Exception('pass type_ as str(len>0)!')
-        c = Ios()
-        c._key = 'type'
-        c._value = type_
-        return c
+        instance = Ios()
+        instance._key = 'type'
+        instance._value = type_
+        return instance
 
     @staticmethod
     def name_(name_, strict = True):
         if not ((type(name_) is str) and (len(name_) > 0)):
             raise Exception('pass name_ as str(len>0)!')
-        c = Ios()
-        c._key = 'name'
-        c._value = "'" + name_ + "'"
-        return c
+        instance = Ios()
+        instance._key = 'name'
+        instance._value = "'" + name_ + "'"
+        return instance
 
     @staticmethod
     def label_(label_, strict = True):
         if not ((type(label_) is str) and (len(label_) > 0)):
             raise Exception('pass label_ as str(len>0)!')
-        c = Ios()
-        c._key = 'label'
-        c._value = "'" + label_ + "'"
-        return c
+        instance = Ios()
+        instance._key = 'label'
+        instance._value = "'" + label_ + "'"
+        return instance
 
     @staticmethod
     def value_(value_, strict = True):
         if not ((type(value_) is str) and (len(value_) > 0)):
             raise Exception('pass value_ as str(len>0)!')
-        c = Ios()
-        c._key = 'value'
-        c._value = "'" + value_ + "'"
-        return c
+        instance = Ios()
+        instance._key = 'value'
+        instance._value = "'" + value_ + "'"
+        return instance
 
 
 
