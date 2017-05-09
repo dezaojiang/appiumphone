@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 #!/usr/bin/env python
 
-import re, os, appium, time, uuid, datetime, selenium, traceback
+import re, os, appium, time, uuid, StringIO, PIL.Image, datetime, selenium, traceback
 from appium.webdriver.connectiontype import ConnectionType as Net_Android
 
 class Phone(object):
@@ -64,9 +64,9 @@ class Phone(object):
         return self._app
     @app.setter
     def app(self, app):
-        if not ((type(app) is str) and (os.path.isfile(path = app.strip().decode(encoding = 'UTF-8', errors = 'strict')))):
+        if not ((type(app) is str) and (os.path.isfile(path = app.strip().decode(encoding = 'utf_8', errors = 'strict')))):
             raise Exception('pass app as str(app_path)!')
-        self._app = app.strip().decode(encoding = 'UTF-8', errors = 'strict')
+        self._app = app.strip()
 
     @property
     def install(self):
@@ -199,7 +199,7 @@ class Phone(object):
 
         self._log.ignite(ignite = 'Phone.attach()')
         try:
-            self._log.clause(clause = 'identity = ' + self._identity + ', platform = ' + self._platform + ', version = ' + self._version + ', app = ' + self._app + ', install = ' + ('true' if self._install is True else 'false') + ', package = ' + self._package + ', activity = ' + (self._activity if self._activity is not None else 'none') + ', executor = ' + self._executor + ', log = ' + self._log._log.name.encode(encoding = 'UTF-8', errors = 'strict'))
+            self._log.clause(clause = 'identity = ' + self._identity + ', platform = ' + self._platform + ', version = ' + self._version + ', app = ' + self._app.replace('/', '\\') + ', install = ' + ('true' if self._install is True else 'false') + ', package = ' + self._package + ', activity = ' + (self._activity if self._activity is not None else 'none') + ', executor = ' + self._executor + ', log = ' + self._log._log.name.encode(encoding = 'utf_8', errors = 'strict'))
 
             self._phone = appium.webdriver.webdriver.WebDriver(command_executor = self._executor, desired_capabilities = capability)
 
@@ -318,7 +318,7 @@ class Phone(object):
 
             self._log.clause(clause = 'xpath = ' + xpath)
 
-            element = self._phone.find_elements(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
+            element = self._phone.find_elements(by = 'xpath', value = xpath.decode(encoding = 'utf_8', errors = 'strict'))
             if not ((type(element) is list) and (len(element) > 0)):
                 raise Exception('find element = 0!')
 
@@ -534,6 +534,34 @@ class Phone(object):
             self._log.error(error = e)
             raise e
 
+    def shoot(self, path):
+##        time.sleep(self._delay)
+        self._log.ignite(ignite = 'Phone.shoot()')
+        try:
+            if not ((type(path) is str) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)) == 1) and (len(re.findall(pattern = '^\s*(.+[/\\\])\s*(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0][1]) > 0)):
+                raise Exception('pass path as str(png_path)!')
+
+            if not os.path.exists(path = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict')):
+                os.makedirs(name = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict'), mode = 0777)
+
+            self._log.clause(clause = 'path = ' + (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0][1]).replace('/', '\\'))
+
+            for i in range(0, 7, 1):
+                try:
+##                    self._phone.get_screenshot_as_file(filename = (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0][1]).decode(encoding = 'utf_8', errors = 'strict'))
+                    with open(name = (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0][1]).decode(encoding = 'utf_8', errors = 'strict'), mode = 'wb+', buffering = 0) as f:
+                        f.write(self._phone.get_screenshot_as_base64().decode(encoding = 'base64_codec', errors = 'strict'))
+                    break
+                except Exception as e:
+                    time.sleep(0.07)
+                    if i == 6:
+                        raise e
+
+            self._log.effect(effect = 'phone shoot')
+        except Exception as e:
+            self._log.error(error = e)
+            raise e
+
     def type_Android(self, key, meta = None):
     #https://developer.android.com/reference/android/view/KeyEvent.html
         time.sleep(self._delay)
@@ -571,7 +599,7 @@ class Phone(object):
             end = time.time() + timeout / 1000
             while time.time() < end:
                 try:
-                    if isinstance(self._phone.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
+                    if isinstance(self._phone.find_element(by = 'xpath', value = xpath.decode(encoding = 'utf_8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
                         break
                 except:
                     if time.time() < end:
@@ -583,8 +611,10 @@ class Phone(object):
             png = self._log._log.name + '.' + uuid.uuid4().hex + '.png'
             for i in range(0, 7, 1):
                 try:
-                    self._phone.get_screenshot_as_file(filename = png)
-                    self._log.effect(effect = 'toast catch = ' + png.encode(encoding = 'UTF-8', errors = 'strict'))
+##                    self._phone.get_screenshot_as_file(filename = png)
+                    with open(name = png, mode = 'wb+', buffering = 0) as f:
+                        f.write(self._phone.get_screenshot_as_base64().decode(encoding = 'base64_codec', errors = 'strict'))
+                    self._log.effect(effect = 'toast catch = ' + png.encode(encoding = 'utf_8', errors = 'strict'))
                     break
                 except:
                     time.sleep(0.07)
@@ -622,6 +652,52 @@ class Phone(object):
             self._log.error(error = e)
             raise e
 
+    def push_Android(self, local, remote):
+        time.sleep(self._delay)
+        self._log.ignite(ignite = 'Phone.push_Android()')
+        try:
+            if not ((self._platform == 'android') and (type(local) is str) and (os.path.isfile(path = local.strip().decode(encoding = 'utf_8', errors = 'strict'))) and (type(remote) is str) and (len(re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)) == 1)):
+                raise Exception('android only, pass local/remote as str(file_path)!')
+
+            self._log.clause(clause = 'local = ' + local.strip().replace('/', '\\') + ', remote = ' + re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)[0].replace('\\', '/'))
+
+            with open(name = local.strip().decode(encoding = 'utf_8', errors = 'strict'), mode = 'rb') as f:
+                self._phone.push_file(path = re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)[0].replace('\\', '/').decode(encoding = 'utf_8', errors = 'strict'), base64data = f.read().encode(encoding = 'base64_codec', errors = 'strict'))
+
+            self._log.effect(effect = 'file push')
+        except Exception as e:
+            self._log.error(error = e)
+            raise e
+
+    def pull_Android(self, local, remote):
+        time.sleep(self._delay)
+        self._log.ignite(ignite = 'Phone.pull_Android()')
+        try:
+            if not ((self._platform == 'android') and (type(local) is str) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = local, flags = 0)) == 1) and (len(re.findall(pattern = '^\s*(.+[/\\\])\s*(.*)\s*$', string = local, flags = 0)[0][1]) > 0) and (type(remote) is str) and (len(re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)) == 1)):
+                raise Exception('android only, pass local/remote as str(file_path)!')
+
+            self._log.clause(clause = 'local = ' + (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = local, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*)\s*$', string = local, flags = 0)[0][1]).replace('/', '\\') + ', remote = ' + re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)[0].replace('\\', '/'))
+
+            if not os.path.exists(path = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = local, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict')):
+                os.makedirs(name = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = local, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict'), mode = 0777)
+
+            try:
+                with open(name = (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = local, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*)\s*$', string = local, flags = 0)[0][1]).decode(encoding = 'utf_8', errors = 'strict'), mode = 'wb+', buffering = 0) as f:
+                    f.write(self._phone.pull_file(path = re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)[0].replace('\\', '/').decode(encoding = 'utf_8', errors = 'strict')).decode(encoding = 'base64_codec', errors = 'strict'))
+                pull = 'file'
+            except selenium.common.exceptions.WebDriverException as e:
+                try:
+                    with open(name = (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = local, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*)\s*$', string = local, flags = 0)[0][1]).decode(encoding = 'utf_8', errors = 'strict'), mode = 'wb+', buffering = 0) as f:
+                        f.write(self._phone.pull_folder(path = re.findall(pattern = '^\s*([/\\\].*[^\s/\\\]).*$', string = remote, flags = 0)[0].replace('\\', '/').decode(encoding = 'utf_8', errors = 'strict')).decode(encoding = 'base64_codec', errors = 'strict'))
+                    pull = 'folder'
+                except:
+                    raise e
+
+            self._log.effect(effect = pull + ' pull')
+        except Exception as e:
+            self._log.error(error = e)
+            raise e
+
 ##I do not think I would like to support webview
 ##        def context(self):
 ##            self._phone.contexts
@@ -636,6 +712,9 @@ class Phone(object):
 
 
 
+
+
+
 class Element(object):
     def __init__(self, element, phone, xpath):
         if not ((isinstance(element, appium.webdriver.webelement.WebElement)) and (isinstance(phone, Phone)) and (type(xpath) is str) and (len(xpath.strip()) > 0)):
@@ -643,10 +722,11 @@ class Element(object):
         self._element = element
         self._phone = phone
         self._xpath = xpath
-        self._abscissa = self._element.location_in_view.get(u'x', None) #store element x coordinate in private variable, in case this value varys as view changs
-        self._ordinate = self._element.location_in_view.get(u'y', None) #store element y coordinate in private variable, in case this value varys as view changs
-        if not ((self._abscissa is not None) and (self._ordinate is not None)):
-            raise Exception('element coordinate unknow!')
+##        #element could be dynamic and not static, element location & size maybe change from time to time
+##        self._abscissa = self._element.location_in_view.get(u'x', None) #store element x coordinate in private variable, in case this value varys as view changs
+##        self._ordinate = self._element.location_in_view.get(u'y', None) #store element y coordinate in private variable, in case this value varys as view changs
+##        if not ((self._abscissa is not None) and (self._ordinate is not None)):
+##            raise Exception('element coordinate unknow!')
 
     def find(self, attribute):
         time.sleep(self._phone._delay)
@@ -682,7 +762,7 @@ class Element(object):
 
             self._phone._log.clause(clause = 'xpath = .' + xpath[len(self._xpath)::1])
 
-            element = self._element._parent.find_elements(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
+            element = self._element._parent.find_elements(by = 'xpath', value = xpath.decode(encoding = 'utf_8', errors = 'strict'))
             if not ((type(element) is list) and (len(element) > 0)):
                 raise Exception('find element = 0!')
 
@@ -705,7 +785,7 @@ class Element(object):
 
             self._phone._log.clause(clause = 'xpath = ./..')
 
-            element = self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict'))
+            element = self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'utf_8', errors = 'strict'))
 
             self._phone._log.effect(effect = 'parent find')
 
@@ -718,7 +798,7 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.tap()')
         try:
-##            if not ((type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1) and (type(count) is int) and (count > 0)):
+##            if not ((type(x) is int) and (1 <= self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y <= self._phone._height - 1) and (type(count) is int) and (count > 0)):
 ##                raise Exception('pass x/y/count as int(within_size)/int(>0)!')
             if not ((type(x) is int) and (type(y) is int) and (type(count) is int) and (count > 0)):
                 raise Exception('pass x/y/count as int()/int(>0)!')
@@ -741,7 +821,7 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = count).perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y, count = count).perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = None, x = self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x, y = self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y, count = count).perform()
 
             self._phone._log.effect(effect = 'element tap = ' + str(count))
         except Exception as e:
@@ -752,7 +832,7 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.hold()')
         try:
-##            if not ((type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1)):
+##            if not ((type(x) is int) and (1 <= self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y <= self._phone._height - 1)):
 ##                raise Exception('pass x/y as int(within_size)!')
             if not ((type(x) is int) and (type(y) is int)):
                 raise Exception('pass x/y as int()!')
@@ -775,7 +855,7 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).press(el = self._element, x = None, y = None).perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).press(el = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y).perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).press(el = None, x = self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x, y = self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y).perform()
 
             self._phone._log.effect(effect = 'element hold')
         except Exception as e:
@@ -786,7 +866,7 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.release()')
         try:
-##            if not ((type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1)):
+##            if not ((type(x) is int) and (1 <= self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y <= self._phone._height - 1)):
 ##                raise Exception('pass x/y as int(within_size)!')
             if not ((type(x) is int) and (type(y) is int)):
                 raise Exception('pass x/y as int()!')
@@ -809,7 +889,7 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).move_to(el = self._element, x = None, y = None).release().perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).move_to(el = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y).release().perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).move_to(el = None, x = self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x, y = self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y).release().perform()
 
             self._phone._log.effect(effect = 'element release')
         except Exception as e:
@@ -820,7 +900,7 @@ class Element(object):
         time.sleep(self._phone._delay)
         self._phone._log.ignite(ignite = 'Element.press()')
         try:
-##            if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (1 <= self._abscissa + self._element.size[u'width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._ordinate + self._element.size[u'height'] / 2 - y <= self._phone._height - 1)):
+##            if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (1 <= self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x <= self._phone._width - 1) and (type(y) is int) and (1 <= self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y <= self._phone._height - 1)):
 ##                raise Exception('pass duration/x/y as int(>0)/int(within_size)!')
             if not ((type(duration) is int) and (duration > 0) and (type(x) is int) and (type(y) is int)):
                 raise Exception('pass duration/x/y as int(>0)/int()!')
@@ -843,7 +923,7 @@ class Element(object):
             if x == 0 and y == 0:
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).long_press(el = self._element, x = None, y = None, duration = duration).perform()
             else:
-                appium.webdriver.common.touch_action.TouchAction(self._element._parent).long_press(el = None, x = self._abscissa + self._element.size[u'width'] / 2 + x, y = self._ordinate + self._element.size[u'height'] / 2 - y, duration = duration).perform()
+                appium.webdriver.common.touch_action.TouchAction(self._element._parent).long_press(el = None, x = self._element.location_in_view[u'x'] + self._element.size['width'] / 2 + x, y = self._element.location_in_view[u'y'] + self._element.size['height'] / 2 - y, duration = duration).perform()
 
             self._phone._log.effect(effect = 'element press = ' + str(duration))
         except Exception as e:
@@ -925,14 +1005,14 @@ class Element(object):
 
             if self._phone._platform == 'android':
                 appium.webdriver.common.touch_action.TouchAction(self._element._parent).tap(element = self._element, x = None, y = None, count = 1).perform()
-                self._element.set_text(keys = send.decode(encoding = 'UTF-8', errors = 'strict'))
+                self._element.set_text(keys = send.decode(encoding = 'utf_8', errors = 'strict'))
                 try:
                     self._element._parent.hide_keyboard(key_name = None, key = None, strategy = None)
                 except:
                     pass
             else:
-##                self._element.send_keys(send.decode(encoding = 'UTF-8', errors = 'strict'))
-                self._element.set_value(value = send.decode(encoding = 'UTF-8', errors = 'strict'))
+##                self._element.send_keys(send.decode(encoding = 'utf_8', errors = 'strict'))
+                self._element.set_value(value = send.decode(encoding = 'utf_8', errors = 'strict'))
 
             self._phone._log.effect(effect = 'line send')
         except Exception as e:
@@ -976,7 +1056,7 @@ class Element(object):
             end = time.time() + timeout / 1000
             while time.time() < end:
                 try:
-                    if not isinstance(self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
+                    if not isinstance(self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'utf_8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
                         raise Exception('element not exist!')
                 except Exception as e:
                     if time.time() < end:
@@ -1028,7 +1108,7 @@ class Element(object):
             end = time.time() + timeout / 1000
             while time.time() < end:
                 try:
-                    if not isinstance(self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'UTF-8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
+                    if not isinstance(self._element._parent.find_element(by = 'xpath', value = xpath.decode(encoding = 'utf_8', errors = 'strict')), appium.webdriver.webdriver.WebElement):
                         raise
                 except Exception:
                         break
@@ -1052,9 +1132,9 @@ class Element(object):
 
             self._phone._log.clause(clause = 'key = ' + key.strip())
 
-            value = self._element.get_attribute(name = key.strip().decode(encoding = 'UTF-8', errors = 'strict'))
+            value = self._element.get_attribute(name = key.strip().decode(encoding = 'utf_8', errors = 'strict'))
             if type(value) is unicode:
-                value = value.encode(encoding = 'utf-8', errors = 'strict')
+                value = value.encode(encoding = 'utf_8', errors = 'strict')
 
             self._phone._log.effect(effect = 'attibute [' + key.strip() + '] = ' + (value if value is not None else 'none'))
 
@@ -1069,7 +1149,7 @@ class Element(object):
         try:
             self._phone._log.clause(clause = 'none')
 
-            width = self._element.size.get(u'width', None)
+            width = self._element.size.get('width', None)
 
             self._phone._log.effect(effect = 'element width = ' + (str(width) if width is not None else 'none'))
 
@@ -1084,7 +1164,7 @@ class Element(object):
         try:
             self._phone._log.clause(clause = 'none')
 
-            height = self._element.size.get(u'height', None)
+            height = self._element.size.get('height', None)
 
             self._phone._log.effect(effect = 'element height = ' + (str(height) if height is not None else 'none'))
 
@@ -1099,7 +1179,7 @@ class Element(object):
         try:
             self._phone._log.clause(clause = 'none')
 
-            abscissa = self._abscissa + self._element.size[u'width'] - self._phone._width / 2
+            abscissa = self._element.location_in_view[u'x'] + self._element.size['width'] - self._phone._width / 2
 
             self._phone._log.effect(effect = 'element abscissa = ' + str(abscissa))
 
@@ -1114,7 +1194,7 @@ class Element(object):
         try:
             self._phone._log.clause(clause = 'none')
 
-            ordinate = self._phone._height / 2 - self._ordinate - self._element.size[u'height']
+            ordinate = self._phone._height / 2 - self._element.location_in_view[u'y'] - self._element.size['height']
 
             self._phone._log.effect(effect = 'element ordinate = ' + str(ordinate))
 
@@ -1183,6 +1263,49 @@ class Element(object):
             self._phone._log.error(error = e)
             raise e
 
+    def shoot(self, path, left = 0, top = 0, right = 0, bottom = 0):
+##        time.sleep(self._delay)
+        self._phone._log.ignite(ignite = 'Element.shoot()')
+        try:
+            if not ((type(path) is str) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)) == 1) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0]) == 2) and (type(left) is int) and (type(top) is int) and (type(right) is int) and (type(bottom) is int)):
+                raise Exception('pass path/left/top/right/bottom as str(png_path)/int!')
+
+            if not os.path.exists(path = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict')):
+                os.makedirs(name = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict'), mode = 0777)
+
+            self._phone._log.clause(clause = 'path = ' + (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0][1]).replace('/', '\\'))
+
+            memory = StringIO.StringIO(buf = '')
+            for i in range(0, 7, 1):
+                try:
+##                    memory.write(s = self._element._parent.get_screenshot_as_png())
+                    memory.write(s = self._element._parent.get_screenshot_as_base64().decode(encoding = 'base64_codec', errors = 'strict'))
+                    break
+                except Exception as e:
+                    time.sleep(0.07)
+                    if i == 6:
+                        raise e
+
+            memory.seek(pos = 0, mode = 0)
+            full_image = PIL.Image.open(fp = memory, mode = 'r')
+
+            left = self._element.location_in_view[u'x'] + left
+            top = self._element.location_in_view[u'y'] - top
+            right = self._element.location_in_view[u'x'] + self._element.size['width'] + right
+            bottom = self._element.location_in_view[u'y'] + self._element.size['height'] - bottom
+
+            element_image = full_image.crop(box = (left, top, right, bottom))
+            element_image.save(fp = (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*[.]png)\s*$', string = path, flags = re.IGNORECASE)[0][1]).decode(encoding = 'utf_8', errors = 'strict'), format = 'PNG')
+            memory.close()
+
+            self._phone._log.effect(effect = 'element shoot')
+        except Exception as e:
+            self._phone._log.error(error = e)
+            raise e
+
+
+
+
 
 
 
@@ -1238,6 +1361,9 @@ class Android(object):
 
 
 
+
+
+
 class Ios(object):
     def __init__(self):
         self._key = None
@@ -1283,15 +1409,18 @@ class Ios(object):
 
 
 
+
+
+
 class Log(object):
     def __init__(self, path, phone):
-        if not ((type(path) is str) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = path, flags = 0)) == 1) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = path, flags = 0)[0]) == 2) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = path, flags = 0)[0][1].strip()) > 0) and (isinstance(phone, Phone))):
+        if not ((type(path) is str) and (len(re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = path, flags = 0)) == 1) and (len(re.findall(pattern = '^\s*(.+[/\\\])\s*(.*)\s*$', string = path, flags = 0)[0][1]) > 0) and (isinstance(phone, Phone))):
             raise Exception('pass path/phone as str(log_path)/Phone()!')
 
-        if not os.path.exists(path = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'UTF-8', errors = 'strict')):
-            os.makedirs(name = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'UTF-8', errors = 'strict'), mode = 0777)
+        if not os.path.exists(path = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict')):
+            os.makedirs(name = re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0].decode(encoding = 'utf_8', errors = 'strict'), mode = 0777)
 
-        self._log = open(name = (re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = path, flags = 0)[0][0] + re.findall(pattern = '^\s*(.+[/\\\])(.*)\s*$', string = path, flags = 0)[0][1].strip()).decode(encoding = 'UTF-8', errors = 'strict'), mode = 'w+', buffering = 0)
+        self._log = open(name = (re.findall(pattern = '^\s*(.+[/\\\]).*$', string = path, flags = 0)[0] + re.findall(pattern = '^\s*(.+[/\\\])\s*(.*)\s*$', string = path, flags = 0)[0][1]).decode(encoding = 'utf_8', errors = 'strict'), mode = 'w+', buffering = 0)
         self._phone = phone
         self._count = 1
 
@@ -1325,7 +1454,9 @@ class Log(object):
         self._log.writelines(traceback.format_stack(f = None, limit = None))
         for i in range(0, 7, 1):
             try:
-                self._phone._phone.get_screenshot_as_file(filename = self._log.name + '.' + str(self._count).zfill(7) + '.png')
+##                self._phone._phone.get_screenshot_as_file(filename = self._log.name + '.' + str(self._count).zfill(7) + '.png')
+                with open(name = self._log.name + '.' + str(self._count).zfill(7) + '.png', mode = 'wb+', buffering = 0) as f:
+                    f.write(self._phone._phone.get_screenshot_as_base64().decode(encoding = 'base64_codec', errors = 'strict'))
                 self._log.write('DEF SCREENSHOT:\t' + self._log.name + '.' + str(self._count).zfill(7) + '.png')
                 self._count += 1
                 break
